@@ -61,7 +61,7 @@ function! GetNextTempFile()
     au BufDelete <buffer> call CleanupTempFiles()
     let b:cellmode_fnames = []
     for i in range(1, b:cellmode_n_files)
-      call add(b:cellmode_fnames, tempname() . ".ipy")
+      call add(b:cellmode_fnames, tempname())
     endfor
     let b:cellmode_fnames_index = 0
   end
@@ -123,42 +123,42 @@ function! CallSystem(cmd)
   end
 endfunction
 
+" Avoids pasting, and sharing the namespace.
+function! RunViaTmux()
+    "execute "normal :w\<CR>"
+    execute ":w"
+
+    let l:msg = 'run Space \"' . bufname("%") . '\" Enter'
+
+    if b:cellmode_tmux_sessionname== ""
+        execute "!tmux send-keys" l:msg
+    else
+        execute "!tmux send-keys -t" b:cellmode_tmux_sessionname l:msg
+    endif
+endfunction
+
 function! CopyToTmux(code)
   " Copy the given code to tmux. We use a temp file for that
   let l:lines = split(a:code, "\n")
-  " If the file is empty, it seems like tmux load-buffer keep the current
-  " buffer and this cause the last command to be repeated. We do not want that
-  " to happen, so add a dummy string
-  if len(l:lines) == 0
-    call add(l:lines, ' ')
-  end
   let l:cellmode_fname = GetNextTempFile()
   call writefile(l:lines, l:cellmode_fname)
 
-  " tmux requires the sessionname to start with $ (for example $ipython to
-  " target the session named 'ipython'). Except in the case where we
-  " want to target the current tmux session (with vim running in tmux)
-  if strlen(b:cellmode_tmux_sessionname) == 0
-    let l:sprefix = ''
-  else
-    let l:sprefix = '$'
-  end
-  let target = l:sprefix . b:cellmode_tmux_sessionname . ':'
+  " Set target tmux
+  let target = b:cellmode_tmux_sessionname . ':'
              \ . b:cellmode_tmux_windowname . '.'
              \ . b:cellmode_tmux_panenumber
 
-  " Ipython has some trouble if we paste large buffer if it has been started
-  " in a small console. We use %load to work around that
-  "call CallSystem('tmux load-buffer ' . l:cellmode_fname)
-  "call CallSystem('tmux paste-buffer -t ' . target)
-  call CallSystem("tmux set-buffer \"%load -y " . l:cellmode_fname . "\n\"")
-  call CallSystem('tmux paste-buffer -t "' . target . '"')
-  " In ipython5, the cursor starts at the top of the lines, so we have to move
-  " to the bottom
-  let downlist = repeat('Down ', len(l:lines) + 1)
-  call CallSystem('tmux send-keys -t "' . target . '" ' . downlist)
-  " Simulate double enter to run loaded code
-  call CallSystem('tmux send-keys -t "' . target . '" Enter Enter')
+  " Use "run -i" rather than (the original implementation's) load-buffer.
+  " Avoids cluttering terminal with input.
+  let l:cellmode_fname = '\"' . l:cellmode_fname . '\"'
+  let l:run_cmd = '"run -i "' . l:cellmode_fname
+  " Append suffix to temp-file-name
+  if exists("g:cellmode_run_comment")
+      let l:run_cmd .= '" # "' . g:cellmode_run_comment
+      unlet g:cellmode_run_comment
+  endif
+
+  call CallSystem("tmux send-keys -t " . target . " " . l:run_cmd . " Enter")
 endfunction
 
 function! CopyToScreen(code)
@@ -211,11 +211,30 @@ function! RunTmuxPythonCell(restore_cursor)
     let l:winview = winsaveview()
   end
 
+  " Move one line down if we're currently on ##
+  if getline(".") =~ b:cellmode_cell_delimiter
+      execute "normal! j"
+  end
+
   " Generates the cell delimiter search pattern
   let l:pat = ':?' . b:cellmode_cell_delimiter . '?;/' . b:cellmode_cell_delimiter . '/y a'
 
   " Execute it
   silent exe l:pat
+
+  " Make suffix from filename and yank-range's linenumbers.
+  let g:cellmode_run_comment = expand("%:t") . "@lines_"
+  execute "normal! '["
+  let g:cellmode_run_comment .= line(".")
+  execute "normal! ']"
+  let g:cellmode_run_comment .= ":" . line(".")
+
+  " Append header
+  execute "normal! '["
+  let l:header = getline(".")
+  let l:header = substitute(l:header, "#", "", "g")
+  "let l:header = substitute(l:header, b:cellmode_cell_delimiter, "", "g")
+  let g:cellmode_run_comment .= " Space " . l:header
 
   "silent :?\=b:cellmode_cell_delimiter?;/\=b:cellmode_cell_delimiter/y a
 
@@ -234,6 +253,8 @@ function! RunTmuxPythonCell(restore_cursor)
   if a:restore_cursor
     call winrestview(l:winview)
   end
+
+  " Unset
 endfunction
 
 function! RunTmuxPythonAllCellsAbove()
@@ -262,6 +283,14 @@ function! RunTmuxPythonChunk() range
   call DefaultVars()
   " Yank current selection to register a
   silent normal gv"ay
+
+  " Make suffix from filename and yank-range's linenumbers.
+  let g:cellmode_run_comment = expand("%:t") . "@lines_"
+  execute "normal! '["
+  let g:cellmode_run_comment .= line(".")
+  execute "normal! ']"
+  let g:cellmode_run_comment .= ":" . line(".")
+
   call RunTmuxPythonReg()
 endfunction
 
