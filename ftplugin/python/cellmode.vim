@@ -283,7 +283,7 @@ function! RunTmuxPythonChunk() range
   call DefaultVars()
   " Yank current selection to register a
   silent normal gv"ay
-
+  "
   " Make suffix from filename and yank-range's linenumbers.
   let g:cellmode_run_comment = expand("%:t") . "@lines_"
   execute "normal! '["
