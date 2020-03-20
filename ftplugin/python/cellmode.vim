@@ -125,6 +125,7 @@ endfunction
 
 " Avoids pasting, and sharing the namespace.
 function! RunViaTmux()
+    call DefaultVars()
     "execute "normal :w\<CR>"
     execute ":w"
 
