@@ -319,3 +319,8 @@ if g:cellmode_default_mappings
     noremap <silent> <C-b> :call RunTmuxPythonCell(0)<CR>
     noremap <silent> <C-g> :call RunTmuxPythonCell(1)<CR>
 endif
+
+
+command! -nargs=1 TpSession :let g:cellmode_tmux_sessionname="tp".<f-args> 
+    \ | :bufdo :let b:cellmode_tmux_sessionname="tp".<f-args>
+"command! -nargs=1 TpySess :let g:cellmode_tmux_sessionname=<f-args>
