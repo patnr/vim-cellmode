@@ -1,13 +1,15 @@
 " Implementation of a MATLAB-like cellmode for python scripts where cells
 " are delimited by ##
 "
-" You can define the following globals or buffer config variables
+" You can define the following global/buffer config variables
 "  let g:cellmode_tmux_sessionname='$ipython'
 "  let g:cellmode_tmux_windowname='ipython'
 "  let g:cellmode_tmux_panenumber='0'
 "  let g:cellmode_screen_sessionname='ipython'
 "  let g:cellmode_screen_window='0'
 "  let g:cellmode_use_tmux=1
+"  let g:cellmode_echo=0
+"  let g:cellmode_verbose=0
 
 function! PythonUnindent(code)
   " The code is unindented so the first selected line has 0 indentation
@@ -86,6 +88,11 @@ function! DefaultVars()
   " - b:cellmode_tmux_sessionname, b:cellmode_tmux_windowname,
   "   b:cellmode_tmux_panenumber :
   "   buffer-specific target (defaults to g:)
+
+
+  let b:cellmode_verbose = GetVar('cellmode_verbose', 0)
+  let b:cellmode_echo = GetVar('cellmode_echo', 0)
+
   let b:cellmode_n_files = GetVar('cellmode_n_files', 10)
 
   if !exists("b:cellmode_use_tmux")
@@ -123,44 +130,142 @@ function! CallSystem(cmd)
   end
 endfunction
 
-" Avoids pasting, and sharing the namespace.
-function! RunViaTmux()
-    call DefaultVars()
-    "execute "normal :w\<CR>"
-    execute ":w"
 
-    let l:msg = 'run Space \"' . bufname("%") . '\" Enter'
 
-    if b:cellmode_tmux_sessionname== ""
-        execute "!tmux send-keys" l:msg
-    else
-        execute "!tmux send-keys -t" b:cellmode_tmux_sessionname l:msg
-    endif
-endfunction
 
-function! CopyToTmux(code)
-  " Copy the given code to tmux. We use a temp file for that
-  let l:lines = split(a:code, "\n")
-  let l:cellmode_fname = GetNextTempFile()
-  call writefile(l:lines, l:cellmode_fname)
-
+function! TmuxSendText(text)
   " Set target tmux
   let target = b:cellmode_tmux_sessionname . ':'
              \ . b:cellmode_tmux_windowname . '.'
              \ . b:cellmode_tmux_panenumber
 
-  " Use "run -i" rather than (the original implementation's) load-buffer.
-  " Avoids cluttering terminal with input.
+  call CallSystem("tmux set-buffer " . a:text)
+  if v:shell_error != 0
+    echom 'Aborting paste.'
+    return 1
+  end
+  call CallSystem("tmux paste-buffer -t " . target)
+endfunction
+
+function! TmuxSendKeys(keys)
+  " Set target tmux
+  let target = b:cellmode_tmux_sessionname . ':'
+             \ . b:cellmode_tmux_windowname . '.'
+             \ . b:cellmode_tmux_panenumber
+
+  call CallSystem("tmux send-keys -t " . target . " " . a:keys)
+endfunction
+
+" Avoids pasting, and sharing the namespace.
+function! RunViaTmux()
+  call DefaultVars()
+
+  execute ":w"
+
+  " Leave tmux copy mode (silence error that arises if not)
+  silent call TmuxSendKeys("-X cancel ")
+
+  " Run
+  let l:msg = '%run Space \"' . fnamemodify(bufname("%"),":p") . '\" Enter'
+  silent call TmuxSendKeys(l:msg)
+
+endfunction
+
+function! CopyToTmux(code)
+  let l:lines = split(a:code, "\n")
+
+  " Tmp Filename
+  " ---------
+  if b:cellmode_verbose
+    let l:cellmode_fname = GetNextTempFile()
+  else
+  " Shorter (only valid on *NIX):
+    "let l:cellmode_fname = "/tmp/" . fnamemodify(bufname("%"),":t")
+    let l:cellmode_fname = "/tmp/" . expand("%:t")
+  end
+
+  " Write code to tmpfile
+  call writefile(l:lines, l:cellmode_fname)
+
+  " MATLAB-like auto-printing of expressions
+  " ---------
+  " Inspired by: https://stackoverflow.com/a/44507944
+  if b:cellmode_echo
+    let l:print_expressions = ["","","","",
+          \ "# PRINT EXPRESSIONS",
+          \ "import ast as ___ast",
+          \ "class ___Visitor(___ast.NodeVisitor):",
+          \ "    def visit_Expr(self, node):",
+          \ "        if hasattr(node.value, 'id'):",
+          \ "            print(node.value.id, ':', sep='')",
+          \ "            s = str(eval(node.value.id))",
+          \ "            s = '    ' + '    \\n'.join(s.split('\\n'))",
+          \ "            print(s)",
+          \ "        self.generic_visit(node)",
+          \ "___Visitor().visit(___ast.parse(open(__file__).read()))",
+          \]
+    call writefile(l:print_expressions, l:cellmode_fname, "a")
+  end
+
+  " Send lines
+  " ---------
+  " Use `%run -i` rather `%load` (like the original implementation).
+  " Leave tmux copy mode (silence error that arises if not)
+  silent call TmuxSendKeys("-X cancel ")
+  " Surround tmp path by quotation marks.
   let l:cellmode_fname = '\"' . l:cellmode_fname . '\"'
-  let l:run_cmd = '"run -i "' . l:cellmode_fname
-  " Append suffix to temp-file-name
-  if exists("g:cellmode_run_comment")
-      let l:run_cmd .= '" # "' . g:cellmode_run_comment
-      unlet g:cellmode_run_comment
+  " Use % in front of run to allow multiline (for comments).
+  let l:cmd = '"%run -i "' . l:cellmode_fname
+
+  " Get line numbers
+  " ---------
+  let l:winview = winsaveview()
+  " Find starting, ending, lineno
+  execute "normal! '[" | let l:line1 = line(".")
+  execute "normal! ']" | let l:line2 = line(".")
+  " Load saved cursor position
+  call winrestview(l:winview)
+
+  " Write line numbers
+  " ---------
+  if b:cellmode_verbose
+    " Start a new line
+    call TmuxSendText(l:cmd)
+    call TmuxSendKeys("C-v C-j")
+    " Insert actual file path and line numbers.
+    let l:cmd = '"# "' . expand("%:p") . ":"
+  else
+    let l:cmd .= '" # "'
+  end
+  let l:cmd .= l:line1.'":"'.l:line2
+
+  " Append headers
+  " ---------
+  if exists("s:cellmode_header")
+    if b:cellmode_verbose
+      call TmuxSendText(l:cmd)
+      call TmuxSendKeys("C-v C-j")
+      let l:cmd = '"# "'
+    else
+      let l:cmd .= '" :: "'
+    end
+    let l:cmd .= '"' . s:cellmode_header . '"'
+    unlet s:cellmode_header
   endif
 
-  call CallSystem("tmux send-keys -t " . target . " " . l:run_cmd . " Enter")
+ 
+  " Execute
+  " ---------
+  call TmuxSendText(l:cmd)
+  call TmuxSendKeys("Enter")
+
 endfunction
+
+
+
+
+
+
 
 function! CopyToScreen(code)
   let l:lines = split(a:code, "\n")
@@ -218,24 +323,44 @@ function! RunTmuxPythonCell(restore_cursor)
   end
 
   " Generates the cell delimiter search pattern
-  let l:pat = ':?' . b:cellmode_cell_delimiter . '?;/' . b:cellmode_cell_delimiter . '/y a'
-
+  "let l:pat = ':?' . b:cellmode_cell_delimiter . '?;/' . b:cellmode_cell_delimiter . '/y a'
   " Execute it
-  silent exe l:pat
+  "silent exe l:pat
+  
+  " Search for delimiters, allowing for TOP and BOTTOM
+  let l:wpscn=&wrapscan
+  set nowrapscan
+  let l:pat = ':?' . b:cellmode_cell_delimiter
+  try | exec pat | catch /search hit TOP/ | silent 0 | finally | mark [ | endtry
+  let l:pat = ':/' . b:cellmode_cell_delimiter
+  try | exec pat | catch /search hit BOTTOM/ | silent $ | finally | mark ] | endtry
+  if l:wpscn | set wrapscan | endif
+  " Yank (includes delimiter lines, if they exist)
+  silent normal '["ay']
 
-  " Make suffix from filename and yank-range's linenumbers.
-  let g:cellmode_run_comment = expand("%:t") . "@lines_"
-  execute "normal! '["
-  let g:cellmode_run_comment .= line(".")
-  execute "normal! ']"
-  let g:cellmode_run_comment .= ":" . line(".")
 
-  " Append header
+  " Get header/footer lines, and check if
+  " they contain delmiters (might not be the case at TOP/BOTTOM)
   execute "normal! '["
   let l:header = getline(".")
-  let l:header = substitute(l:header, "#", "", "g")
-  "let l:header = substitute(l:header, b:cellmode_cell_delimiter, "", "g")
-  let g:cellmode_run_comment .= " Space " . l:header
+  let l:header_delim_exists = -1<match(l:header, "^\\s*".b:cellmode_cell_delimiter)
+  execute "normal! ']"
+  let l:footer = getline(".")
+  let l:footer_delim_exists = -1<match(l:footer, "^\\s*".b:cellmode_cell_delimiter)
+
+  " Format header
+  if l:header_delim_exists
+    " Rm delimiters (for prettiness) 
+    let l:header = substitute(l:header, b:cellmode_cell_delimiter, "", "g")
+    " Rm # which bash command views as comments:
+    let l:header = substitute(l:header, "#", "", "g")
+    " Trim initial space
+    let l:header = substitute(l:header, "^ \\+", "", "g")
+    " Check if header not empty
+    if l:header != ""
+      let s:cellmode_header = l:header
+    endif
+  endif
 
   "silent :?\=b:cellmode_cell_delimiter?;/\=b:cellmode_cell_delimiter/y a
 
@@ -243,14 +368,26 @@ function! RunTmuxPythonCell(restore_cursor)
   " execution chaining (of course if restore_cursor is true, this is a no-op
   " Move to the last character of the previously yanked text
   execute "normal! ']"
-  " Move one line down
-  execute "normal! j"
+
+  if l:footer_delim_exists
+    " Set the ] mark 1 line upward
+    " (for printing the linenumber, later)
+    normal k
+    mark ]
+    normal j
+  endif
 
   " The above will have the leading and ending ## in the register, but we
   " have to remove them (especially leading one) to get a correct indentation
-  " estimate. So just select the correct subrange of lines [1:-2]
-  let @a=join(split(@a, "\n")[1:-2], "\n")
+  " estimate. So just select the correct subrange of lines [iStart:iEnd]
+  let l:iStart = 0
+  let l:iEnd = -1
+  if l:header_delim_exists | let l:iStart += 1 | endif
+  if l:footer_delim_exists | let l:iEnd   -= 1 | endif
+  let @a=join(split(@a, "\n")[l:iStart : l:iEnd], "\n")
+
   call RunTmuxPythonReg()
+
   if a:restore_cursor
     call winrestview(l:winview)
   end
@@ -284,13 +421,7 @@ function! RunTmuxPythonChunk() range
   call DefaultVars()
   " Yank current selection to register a
   silent normal gv"ay
-  "
-  " Make suffix from filename and yank-range's linenumbers.
-  let g:cellmode_run_comment = expand("%:t") . "@lines_"
-  execute "normal! '["
-  let g:cellmode_run_comment .= line(".")
-  execute "normal! ']"
-  let g:cellmode_run_comment .= ":" . line(".")
+  let s:cellmode_header = "[visual]"
 
   call RunTmuxPythonReg()
 endfunction
@@ -319,8 +450,3 @@ if g:cellmode_default_mappings
     noremap <silent> <C-b> :call RunTmuxPythonCell(0)<CR>
     noremap <silent> <C-g> :call RunTmuxPythonCell(1)<CR>
 endif
-
-
-command! -nargs=1 TpSession :let g:cellmode_tmux_sessionname="tp".<f-args> 
-    \ | :bufdo :let b:cellmode_tmux_sessionname="tp".<f-args>
-"command! -nargs=1 TpySess :let g:cellmode_tmux_sessionname=<f-args>
