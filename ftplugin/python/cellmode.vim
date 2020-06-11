@@ -9,6 +9,7 @@
 "  let g:cellmode_screen_window='0'
 "  let g:cellmode_use_tmux=1
 "  let g:cellmode_echo=0
+"  let g:cellmode_echo_assigments_too=0
 "  let g:cellmode_verbose=0
 
 function! PythonUnindent(code)
@@ -92,6 +93,7 @@ function! DefaultVars()
 
   let b:cellmode_verbose = GetVar('cellmode_verbose', 0)
   let b:cellmode_echo = GetVar('cellmode_echo', 0)
+  let b:cellmode_echo_assigments_too = GetVar('cellmode_echo_assigments_too', 0)
 
   let b:cellmode_n_files = GetVar('cellmode_n_files', 10)
 
@@ -191,20 +193,45 @@ function! CopyToTmux(code)
   " ---------
   " Inspired by: https://stackoverflow.com/a/44507944
   if b:cellmode_echo
-    let l:print_expressions = ["","","","",
-          \ "# PRINT EXPRESSIONS",
+
+    let l:apdx = ["","","","",
+          \ "# AUTO-PRINTING",
+          \ "",
+          \ "def my_ast_printer(thing):",
+          \ "    if hasattr(thing, 'id'):",
+          \ "        # Avoid recursion for one particular var-name (___x___)",
+          \ "        ___x___ = thing.id",
+          \ "        if ___x___ != '___x___':",
+          \ "            try: eval(___x___)",
+          \ "            except NameError: return",
+          \ "            print(___x___, ':', sep='')",
+          \ "            ___x___ = str(eval(___x___))",
+          \ "            ___x___ = '    ' + '    \\n'.join(___x___.split('\\n'))",
+          \ "            print(___x___)",
+          \ "",
           \ "import ast as ___ast",
           \ "class ___Visitor(___ast.NodeVisitor):",
           \ "    def visit_Expr(self, node):",
-          \ "        if hasattr(node.value, 'id'):",
-          \ "            print(node.value.id, ':', sep='')",
-          \ "            s = str(eval(node.value.id))",
-          \ "            s = '    ' + '    \\n'.join(s.split('\\n'))",
-          \ "            print(s)",
+          \ "        my_ast_printer(node.value)",
           \ "        self.generic_visit(node)",
-          \ "___Visitor().visit(___ast.parse(open(__file__).read()))",
           \]
-    call writefile(l:print_expressions, l:cellmode_fname, "a")
+    call writefile(l:apdx, l:cellmode_fname, "a")
+
+    if b:cellmode_echo_assigments_too
+      let l:apdx = ["","",
+          \ "    def visit_Assign(self, node):",
+          \ "        for target in node.targets:",
+          \ "            my_ast_printer(target)",
+          \ "        self.generic_visit(node)",
+          \]
+      call writefile(l:apdx, l:cellmode_fname, "a")
+    end
+
+    let l:apdx = ["",
+          \ "___Visitor().visit(___ast.parse(open(__file__).read()))",
+          \ "del my_ast_printer, ___Visitor",
+          \]
+    call writefile(l:apdx, l:cellmode_fname, "a")
   end
 
   " Send lines
