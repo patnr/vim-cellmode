@@ -183,7 +183,7 @@ function! CopyToTmux(code)
   else
   " Shorter (only valid on *NIX):
     "let l:cellmode_fname = "/tmp/" . fnamemodify(bufname("%"),":t")
-    let l:cellmode_fname = "/tmp/" . expand("%:t")
+    let l:cellmode_fname = "/tmp/" . expand("%:t:r") . "_.py"
   end
 
   " Write code to tmpfile
