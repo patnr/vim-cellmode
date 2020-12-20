@@ -185,6 +185,7 @@ function! RunInteractiveViaTmux()
   let l:msg = '%run Space -i Space \"' . fnamemodify(bufname("%"),":p") . '\" Enter'
   silent call TmuxSendKeys(l:msg)
 
+
 endfunction
 
 function! CopyToTmux(code)
