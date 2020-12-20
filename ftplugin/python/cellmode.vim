@@ -173,6 +173,20 @@ function! RunViaTmux()
 
 endfunction
 
+function! RunInteractiveViaTmux()
+  call DefaultVars()
+
+  execute ":w"
+
+  " Leave tmux copy mode (silence error that arises if not)
+  silent call TmuxSendKeys("-X cancel ")
+
+  " Run
+  let l:msg = '%run Space -i Space \"' . fnamemodify(bufname("%"),":p") . '\" Enter'
+  silent call TmuxSendKeys(l:msg)
+
+endfunction
+
 function! CopyToTmux(code)
   let l:lines = split(a:code, "\n")
 
