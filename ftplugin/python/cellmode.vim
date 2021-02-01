@@ -166,6 +166,10 @@ function! RunViaTmux()
 
   " Leave tmux copy mode (silence error that arises if not)
   silent call TmuxSendKeys("-X cancel ")
+  " Enter ipython's readline-vim-insert-mode (or write i otherwise)
+  call TmuxSendKeys("i")
+  " Cancel whatever is currently written
+  call TmuxSendKeys("C-c")
 
   " Run
   let l:msg = '%run Space \"' . fnamemodify(bufname("%"),":p") . '\" Enter'
@@ -180,6 +184,10 @@ function! RunInteractiveViaTmux()
 
   " Leave tmux copy mode (silence error that arises if not)
   silent call TmuxSendKeys("-X cancel ")
+  " Enter ipython's readline-vim-insert-mode (or write i otherwise)
+  call TmuxSendKeys("i")
+  " Cancel whatever is currently written
+  call TmuxSendKeys("C-c")
 
   " Run
   let l:msg = '%run Space -i Space \"' . fnamemodify(bufname("%"),":p") . '\" Enter'
