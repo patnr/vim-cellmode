@@ -183,7 +183,7 @@ function! RunViaTmux(...)
       let l:msg = ''
   endif
   let l:msg = '%run Space ' . l:msg
-  # Run
+  " Run
   let l:msg = l:msg . '\"' . fnamemodify(bufname("%"),":p") . '\" Enter'
   silent call TmuxSendKeys(l:msg)
 endfunction
