@@ -339,59 +339,52 @@ endfunction
 
 
 function! RunTmuxPythonCell(restore_cursor)
-  " This is to emulate MATLAB's cell mode
-  " Cells are delimited by ##. Note that there should be a ## at the end of the
-  " file
-  " The :?##?;/##/ part creates a range with the following
-  " ?##? search backwards for ##
-
-  " Then ';' starts the range from the result of the previous search (##)
-  " /##/ End the range at the next ##
-  " See the doce on 'ex ranges' here :
-  " http://tnerual.eriogerg.free.fr/vimqrc.html
-  "
-  " Note that cell delimiters can be configured through
-  " b:cellmode_cell_delimiter, but we keep ## in the comments for simplicity
+  " This is to emulate MATLAB's cell mode. Cells are delimited by ##,
+  " but this can be configured through b:cellmode_cell_delimiter.
+  " For simplicity, we only refer to ## in our doc/comments.
   call DefaultVars()
+  let xx = b:cellmode_cell_delimiter
+
+  " Setup
   if a:restore_cursor
     let l:winview = winsaveview()
   end
-
   " Move one line down if we're currently on ##
-  if getline(".") =~ b:cellmode_cell_delimiter
+  if getline(".") =~ xx
       execute "normal! j"
   end
 
-  " Generates the cell delimiter search pattern
-  "let l:pat = ':?' . b:cellmode_cell_delimiter . '?;/' . b:cellmode_cell_delimiter . '/y a'
-  " Execute it
-  "silent exe l:pat
-  
-  " Search for delimiters, allowing for TOP and BOTTOM
-  let l:wpscn=&wrapscan
-  set nowrapscan
-  let l:pat = ':?' . b:cellmode_cell_delimiter
-  try | exec pat | catch /search hit TOP/ | silent 0 | finally | mark [ | endtry
-  let l:pat = ':/' . b:cellmode_cell_delimiter
-  try | exec pat | catch /search hit BOTTOM/ | silent $ | finally | mark ] | endtry
+  " Old method: Search and create range with :?##?;/##/. Works like so:
+  " - ?##? search backwards for ##
+  " - ';' start the range from the result of the previous search (##)
+  " - /##/ End the range at the next ##
+  " See the doce on 'ex ranges' here: http://tnerual.eriogerg.free.fr/vimqrc.html
+  " let l:pat = ':?' . xx . '?;/' . xx . '/y a'
+  " silent exe l:pat
+
+  " Alternative solution: use marks, moving via search (for delimiters).
+  " If there are exceptions, move to TOP (0), or BOTTOM ($).
+  let l:wpscn=&wrapscan | set nowrapscan
+  try | exec ':?'.xx | catch | silent 0 | endtry
+  mark [
+  try | exec ':/'.xx | catch | silent $ | endtry
+  mark ]
   if l:wpscn | set wrapscan | endif
-  " Yank (includes delimiter lines, if they exist)
   silent normal '["ay']
 
-
-  " Get header/footer lines, and check if
-  " they contain delmiters (might not be the case at TOP/BOTTOM)
+  " Get header/footer lines, and check if they contain ##
+  " (might not be the case at TOP/BOTTOM)
   execute "normal! '["
   let l:header = getline(".")
-  let l:header_delim_exists = -1<match(l:header, "^\\s*".b:cellmode_cell_delimiter)
+  let l:header_exists = -1<match(l:header, "^\\s*".xx)
   execute "normal! ']"
   let l:footer = getline(".")
-  let l:footer_delim_exists = -1<match(l:footer, "^\\s*".b:cellmode_cell_delimiter)
+  let l:footer_exists = -1<match(l:footer, "^\\s*".xx)
 
   " Format header
-  if l:header_delim_exists
-    " Rm delimiters (for prettiness) 
-    let l:header = substitute(l:header, b:cellmode_cell_delimiter, "", "g")
+  if l:header_exists
+    " Rm delimiters (for prettiness)
+    let l:header = substitute(l:header, xx, "", "g")
     " Rm # which bash command views as comments:
     let l:header = substitute(l:header, "#", "", "g")
     " Trim initial space
@@ -402,28 +395,22 @@ function! RunTmuxPythonCell(restore_cursor)
     endif
   endif
 
-  "silent :?\=b:cellmode_cell_delimiter?;/\=b:cellmode_cell_delimiter/y a
-
-  " Now, we want to position ourselves inside the next block to allow block
-  " execution chaining (of course if restore_cursor is true, this is a no-op
-  " Move to the last character of the previously yanked text
+  " Position cursor in next block for chaining execution
   execute "normal! ']"
 
-  if l:footer_delim_exists
-    " Set the ] mark 1 line upward
-    " (for printing the linenumber, later)
+  if l:footer_exists
+    " Set mark 1 line up (for printing the linenumber, later)
     normal k
     mark ]
     normal j
   endif
 
-  " The above will have the leading and ending ## in the register, but we
-  " have to remove them (especially leading one) to get a correct indentation
-  " estimate. So just select the correct subrange of lines [iStart:iEnd]
-  let l:iStart = 0
-  let l:iEnd = -1
-  if l:header_delim_exists | let l:iStart += 1 | endif
-  if l:footer_delim_exists | let l:iEnd   -= 1 | endif
+  " The above will have the leading and trailing ## in the register,
+  " but we have to remove them (especially leading one) to get
+  " correct indentation estimate.
+  " So just select the correct subrange of lines [iStart:iEnd]
+  let l:iStart = l:header_exists ? 1 : 0
+  let l:iEnd   = l:footer_exists ? -2 : -1
   let @a=join(split(@a, "\n")[l:iStart : l:iEnd], "\n")
 
   call RunTmuxPythonReg()
@@ -431,7 +418,6 @@ function! RunTmuxPythonCell(restore_cursor)
   if a:restore_cursor
     call winrestview(l:winview)
   end
-  " Unset
 endfunction
 
 
