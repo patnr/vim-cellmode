@@ -164,9 +164,8 @@ function! TmuxSendKeys(keys)
 endfunction
 
 " Avoids pasting, and sharing the namespace.
-function! RunViaTmux()
+function! RunViaTmux(...)
   call DefaultVars()
-
   execute ":w"
 
   " Leave tmux copy mode (silence error that arises if not)
@@ -176,30 +175,19 @@ function! RunViaTmux()
   " Cancel whatever is currently written
   call TmuxSendKeys("C-c")
 
-  " Run
-  let l:msg = '%run Space \"' . fnamemodify(bufname("%"),":p") . '\" Enter'
+  " Run as interactive?
+  let interactive = a:0 >= 1 ? a:1 : 0
+  if interactive
+      let l:msg = '-i Space '
+  else
+      let l:msg = ''
+  endif
+  let l:msg = '%run Space ' . l:msg
+  # Run
+  let l:msg = l:msg . '\"' . fnamemodify(bufname("%"),":p") . '\" Enter'
   silent call TmuxSendKeys(l:msg)
-
 endfunction
 
-function! RunInteractiveViaTmux()
-  call DefaultVars()
-
-  execute ":w"
-
-  " Leave tmux copy mode (silence error that arises if not)
-  silent call TmuxSendKeys("-X cancel ")
-  " Enter ipython's readline-vim-insert-mode (or write i otherwise)
-  call TmuxSendKeys("i")
-  " Cancel whatever is currently written
-  call TmuxSendKeys("C-c")
-
-  " Run
-  let l:msg = '%run Space -i Space \"' . fnamemodify(bufname("%"),":p") . '\" Enter'
-  silent call TmuxSendKeys(l:msg)
-
-
-endfunction
 
 function! CopyToTmux(code)
   let l:lines = split(a:code, "\n")
