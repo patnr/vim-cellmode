@@ -12,6 +12,7 @@
 "  let g:cellmode_echo_assigments_too=0
 "  let g:cellmode_verbose=0
 
+
 function! PythonUnindent(code)
   " The code is unindented so the first selected line has 0 indentation
   " So you can select a statement from inside a function and it will run
@@ -28,6 +29,7 @@ function! PythonUnindent(code)
   return l:ucode
 endfunction
 
+
 function! GetVar(name, default)
   " Return a value for the given variable, looking first into buffer, then
   " globals and defaulting to default
@@ -40,6 +42,7 @@ function! GetVar(name, default)
   end
 endfunction
 
+
 function! CleanupTempFiles()
   " Called when leaving current buffer; Cleans up temporary files
   if (exists('b:cellmode_fnames'))
@@ -49,6 +52,7 @@ function! CleanupTempFiles()
     unlet b:cellmode_fnames
   end
 endfunction
+
 
 function! GetNextTempFile()
   " Returns the next temporary filename to use
@@ -79,6 +83,7 @@ function! GetNextTempFile()
   "echo 'cellmode_fname : ' . l:cellmode_fname
   return l:cellmode_fname
 endfunction
+
 
 function! DefaultVars()
   " Load and set defaults config variables :
@@ -124,6 +129,7 @@ function! DefaultVars()
   end
 endfunction
 
+
 function! CallSystem(cmd)
   " Execute the given system command, reporting errors if any
   let l:out = system(a:cmd)
@@ -131,8 +137,6 @@ function! CallSystem(cmd)
     echom 'Vim-cellmode, error running ' . a:cmd . ' : ' . l:out
   end
 endfunction
-
-
 
 
 function! TmuxSendText(text)
@@ -148,6 +152,7 @@ function! TmuxSendText(text)
   end
   call CallSystem("tmux paste-buffer -t " . target)
 endfunction
+
 
 function! TmuxSendKeys(keys)
   " Set target tmux
@@ -303,17 +308,12 @@ function! CopyToTmux(code)
     unlet s:cellmode_header
   endif
 
- 
   " Execute
   " ---------
   call TmuxSendText(l:cmd)
   call TmuxSendKeys("Enter")
 
 endfunction
-
-
-
-
 
 
 
@@ -338,6 +338,7 @@ function! CopyToScreen(code)
               \ . " -X stuff '%paste\n'")
 endfunction
 
+
 function! RunTmuxPythonReg()
   " Paste into tmux the content of the register @a
   let l:code = PythonUnindent(@a)
@@ -347,6 +348,7 @@ function! RunTmuxPythonReg()
     call CopyToScreen(l:code)
   end
 endfunction
+
 
 function! RunTmuxPythonCell(restore_cursor)
   " This is to emulate MATLAB's cell mode
@@ -441,9 +443,9 @@ function! RunTmuxPythonCell(restore_cursor)
   if a:restore_cursor
     call winrestview(l:winview)
   end
-
   " Unset
 endfunction
+
 
 function! RunTmuxPythonAllCellsAbove()
   " Executes all the cells above the current line. That is, everything from
@@ -467,6 +469,7 @@ function! RunTmuxPythonAllCellsAbove()
   call setpos(".", l:cursor_pos)
 endfunction
 
+
 function! RunTmuxPythonChunk() range
   call DefaultVars()
   " Yank current selection to register a
@@ -476,12 +479,14 @@ function! RunTmuxPythonChunk() range
   call RunTmuxPythonReg()
 endfunction
 
+
 function! RunTmuxPythonLine()
   call DefaultVars()
   " Yank current selection to register a
   silent normal "ayy
   call RunTmuxPythonReg()
 endfunction
+
 
 " Returns:
 "   1 if the var is set, 0 otherwise
@@ -492,6 +497,7 @@ function! InitVariable(var, value)
     endif
     return 0
 endfunction
+
 
 call InitVariable("g:cellmode_default_mappings", 1)
 
