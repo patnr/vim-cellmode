@@ -447,10 +447,9 @@ function! RunTmuxPythonAllCellsAbove()
 
   let l:cursor_pos = getpos(".")
 
-  " Creates a range from the first line to the closest ## above the current
-  " line (?##? searches backward for ##)
-  let l:pat = ':1,?' . b:cellmode_cell_delimiter . '?y a'
-  silent exe l:pat
+  " Creates a range from the first line to the closest ## above.
+  " See RunTmuxPythonCell for explanations
+  silent exe ':1,?' . b:cellmode_cell_delimiter . '?y a'
 
   let @a=join(split(@a, "\n")[:-2], "\n")
   call RunTmuxPythonReg()
