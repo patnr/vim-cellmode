@@ -177,12 +177,7 @@ function! RunViaTmux(...)
 
   " Run as interactive?
   let interactive = a:0 >= 1 ? a:1 : 0
-  if interactive
-      let l:msg = '-i Space '
-  else
-      let l:msg = ''
-  endif
-  let l:msg = '%run Space ' . l:msg
+  let l:msg = '%run Space ' . (interactive ? "-i Space " : "")
   " Run
   let l:msg = l:msg . '\"' . fnamemodify(bufname("%"),":p") . '\" Enter'
   silent call TmuxSendKeys(l:msg)
