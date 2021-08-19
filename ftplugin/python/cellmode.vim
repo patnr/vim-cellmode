@@ -11,6 +11,10 @@
 "  let g:cellmode_echo=0
 "  let g:cellmode_echo_assigments_too=0
 "  let g:cellmode_verbose=0
+"
+"  - let g:cellmode_abs_path=0
+"    Only use abs path when file not under pwd
+"    If 1: always use abs path.
 
 
 function! PythonUnindent(code)
@@ -95,7 +99,7 @@ function! DefaultVars()
   "   b:cellmode_tmux_panenumber :
   "   buffer-specific target (defaults to g:)
 
-
+  let b:cellmode_abs_path = GetVar('cellmode_abs_path', 0)
   let b:cellmode_verbose = GetVar('cellmode_verbose', 0)
   let b:cellmode_echo = GetVar('cellmode_echo', 0)
   let b:cellmode_echo_assigments_too = GetVar('cellmode_echo_assigments_too', 0)
@@ -178,8 +182,10 @@ function! RunViaTmux(...)
   " Run as interactive?
   let interactive = a:0 >= 1 ? a:1 : 0
   let l:msg = '%run Space ' . (interactive ? "-i Space " : "")
+
+  let fname = fnamemodify(bufname("%"), b:cellmode_abs_path ? ":p" : ":p:~:.")
   " Run
-  let l:msg = l:msg . '\"' . fnamemodify(bufname("%"),":p") . '\" Enter'
+  let l:msg = l:msg . '\"' . fname . '\" Enter'
   silent call TmuxSendKeys(l:msg)
 endfunction
 
