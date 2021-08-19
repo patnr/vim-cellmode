@@ -8,13 +8,13 @@
 "  let g:cellmode_screen_sessionname='ipython'
 "  let g:cellmode_screen_window='0'
 "  let g:cellmode_use_tmux=1
-"  let g:cellmode_echo=0
-"  let g:cellmode_echo_assigments_too=0
-"  let g:cellmode_verbose=0
 "
 "  - let g:cellmode_abs_path=0
 "    Only use abs path when file not under pwd
 "    If 1: always use abs path.
+"  - let g:cellmode_echo=0
+"  - let g:cellmode_echo_assigments_too=0
+"  - let g:cellmode_verbose=0
 
 
 function! PythonUnindent(code)
