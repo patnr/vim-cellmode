@@ -1,20 +1,82 @@
-" Implementation of a MATLAB-like cellmode for python scripts where cells
-" are delimited by ##
-"
-" You can define the following global/buffer config variables
-"  let g:cellmode_tmux_sessionname='$ipython'
-"  let g:cellmode_tmux_windowname='ipython'
-"  let g:cellmode_tmux_panenumber='0'
-"  let g:cellmode_screen_sessionname='ipython'
-"  let g:cellmode_screen_window='0'
-"  let g:cellmode_use_tmux=1
-"
-"  - let g:cellmode_abs_path=0
-"    Only use abs path when file not under pwd
-"    If 1: always use abs path.
-"  - let g:cellmode_echo=0
-"  - let g:cellmode_echo_assigments_too=0
-"  - let g:cellmode_verbose=0
+" Implementation of a MATLAB-like cellmode for python scripts.
+" Cells are delimited by ##
+
+
+function! GetVar(name, default)
+  " Return a value for the given variable,
+  " looking first into buffer, then globals,
+  " and lastly falling back to default.
+  if (exists ("b:" . a:name))
+    return b:{a:name}
+  elseif (exists ("g:" . a:name))
+    return g:{a:name}
+  else
+    return a:default
+  end
+endfunction
+
+
+function! DefaultVars()
+  " Define global/buffer config variables. Each one must be prefixed by g: or b: .
+  "
+  " Defines target tmux
+  " - cellmode_tmux_sessionname (also defines socket name)
+  " - cellmode_tmux_windowname
+  " - cellmode_tmux_panenumber
+  "
+  " - cellmode_screen_sessionname
+  " - cellmode_screen_window
+  " - cellmode_use_tmux
+  "
+  " - Only use abs path when file not under pwd. If 1: always use abs path.
+  "   cellmode_abs_path
+  "
+  " - Verbosity control
+  "   cellmode_echo
+  "   cellmode_echo_assigments_too
+  "   cellmode_verbose
+
+  let b:cellmode_abs_path = GetVar('cellmode_abs_path', 0)
+  let b:cellmode_verbose = GetVar('cellmode_verbose', 0)
+  let b:cellmode_echo = GetVar('cellmode_echo', 0)
+  let b:cellmode_echo_assigments_too = GetVar('cellmode_echo_assigments_too', 0)
+
+  let b:cellmode_n_files = GetVar('cellmode_n_files', 10)
+
+  if !exists("b:cellmode_use_tmux")
+    let b:cellmode_use_tmux = GetVar('cellmode_use_tmux', 1)
+  endif
+
+  if !exists("b:cellmode_cell_delimiter")
+    " By default, use ##, #%% or # %% (to be compatible with spyder)
+    let b:cellmode_cell_delimiter = GetVar('cellmode_cell_delimiter',
+                                         \ '\(##\|#%%\|#\s%%\)')
+  endif
+
+  " Special fallback for b:cellmode_tmux_sessionname,
+  " that get's re-run each time DefaultVars is run:
+  let tp = GetVar('cellmode_tmux_sessionname', "")
+  if tp == "" || tp =~ "(auto)"
+      let tp = LastTmuxSocket()
+      let tp = tp . "(auto)" " tag
+  endif
+  let b:cellmode_tmux_sessionname = tp
+
+  if !exists("b:cellmode_tmux_windowname") ||
+   \ !exists("b:cellmode_tmux_panenumber")
+    " Empty target session and window by default => tmux tries to pick session
+    " Doesn't work since we started using separate tmux servers.
+    let b:cellmode_tmux_windowname = GetVar('cellmode_tmux_windowname', '')
+    let b:cellmode_tmux_panenumber = GetVar('cellmode_tmux_panenumber', '0')
+  endif
+
+  if !exists("g:cellmode_screen_sessionname") ||
+   \ !exists("b:cellmode_screen_window")
+    let b:cellmode_screen_sessionname = GetVar('cellmode_screen_sessionname', 'ipython')
+    let b:cellmode_screen_window = GetVar('cellmode_screen_window', '0')
+  endif
+
+endfunction
 
 
 function! PythonUnindent(code)
@@ -31,19 +93,6 @@ function! PythonUnindent(code)
   call map(l:lines, l:subcmd)
   let l:ucode = join(l:lines, "\n")
   return l:ucode
-endfunction
-
-
-function! GetVar(name, default)
-  " Return a value for the given variable, looking first into buffer, then
-  " globals and defaulting to default
-  if (exists ("b:" . a:name))
-    return b:{a:name}
-  elseif (exists ("g:" . a:name))
-    return g:{a:name}
-  else
-    return a:default
-  end
 endfunction
 
 
@@ -89,51 +138,6 @@ function! GetNextTempFile()
 endfunction
 
 
-function! DefaultVars()
-  " Load and set defaults config variables :
-  " - b:cellmode_fname temporary filename
-  " - g:cellmode_tmux_sessionname, g:cellmode_tmux_windowname,
-  "   g:cellmode_tmux_panenumber : default tmux
-  "   target
-  " - b:cellmode_tmux_sessionname, b:cellmode_tmux_windowname,
-  "   b:cellmode_tmux_panenumber :
-  "   buffer-specific target (defaults to g:)
-
-  let b:cellmode_abs_path = GetVar('cellmode_abs_path', 0)
-  let b:cellmode_verbose = GetVar('cellmode_verbose', 0)
-  let b:cellmode_echo = GetVar('cellmode_echo', 0)
-  let b:cellmode_echo_assigments_too = GetVar('cellmode_echo_assigments_too', 0)
-
-  let b:cellmode_n_files = GetVar('cellmode_n_files', 10)
-
-  if !exists("b:cellmode_use_tmux")
-    let b:cellmode_use_tmux = GetVar('cellmode_use_tmux', 1)
-  end
-
-  if !exists("b:cellmode_cell_delimiter")
-    " By default, use ##, #%% or # %% (to be compatible with spyder)
-    let b:cellmode_cell_delimiter = GetVar('cellmode_cell_delimiter',
-                                         \ '\(##\|#%%\|#\s%%\)')
-  end
-
-  if !exists("b:cellmode_tmux_sessionname") ||
-   \ !exists("b:cellmode_tmux_windowname") ||
-   \ !exists("b:cellmode_tmux_panenumber")
-    " Empty target session and window by default => try to automatically pick
-    " tmux session
-    let b:cellmode_tmux_sessionname = GetVar('cellmode_tmux_sessionname', '')
-    let b:cellmode_tmux_windowname = GetVar('cellmode_tmux_windowname', '')
-    let b:cellmode_tmux_panenumber = GetVar('cellmode_tmux_panenumber', '0')
-  end
-
-  if !exists("g:cellmode_screen_sessionname") ||
-   \ !exists("b:cellmode_screen_window")
-    let b:cellmode_screen_sessionname = GetVar('cellmode_screen_sessionname', 'ipython')
-    let b:cellmode_screen_window = GetVar('cellmode_screen_window', '0')
-  end
-endfunction
-
-
 function! CallSystem(cmd)
   " Execute the given system command, reporting errors if any
   let l:out = system(a:cmd)
@@ -143,29 +147,51 @@ function! CallSystem(cmd)
 endfunction
 
 
-function! TmuxSendText(text)
-  " Set target tmux
-  let target = b:cellmode_tmux_sessionname . ':'
-             \ . b:cellmode_tmux_windowname . '.'
-             \ . b:cellmode_tmux_panenumber
+function! LastTmuxSocket()
+    " Find last (latest?) tmux socket
+    let cmd = ["lsof -U 2>/dev/null",
+                \"grep 'tmp/tmux'",
+                \"tail -n 1",
+                \"rev ",
+                \"cut -d ' ' -f 2 ",
+                \"rev ",
+                \"cut -d '/' -f 4"]
+    let tp = trim(system(join(cmd, " \| ")))
+    if tp == ""
+        throw "Could not find tmux socket. Presumably there is no running tmux server."
+    endif
+    return tp
+endfunction
 
-  call CallSystem("tmux set-buffer " . a:text)
-  if v:shell_error != 0
-    echom 'Aborting paste.'
-    return 1
-  end
-  call CallSystem("tmux paste-buffer -t " . target)
+
+function! ParseTp()
+    " Alias
+    let tp = b:cellmode_tmux_sessionname
+    " Rm (auto) tag (if it's there)
+    let tp = substitute(tp, "(auto)", "", "")
+    " Compose
+    let socket = "tmux -L " . tp
+    let target = "-t " . tp . ':' . b:cellmode_tmux_windowname . '.' . b:cellmode_tmux_panenumber
+    return [socket, target]
 endfunction
 
 
 function! TmuxSendKeys(keys)
-  " Set target tmux
-  let target = b:cellmode_tmux_sessionname . ':'
-             \ . b:cellmode_tmux_windowname . '.'
-             \ . b:cellmode_tmux_panenumber
-
-  call CallSystem("tmux send-keys -t " . target . " " . a:keys)
+    let [socket, target] = ParseTp()
+    call CallSystem(socket . " send-keys " . target . " " . a:keys)
 endfunction
+
+
+function! TmuxSendText(text)
+    let [socket, target] = ParseTp()
+    call CallSystem(socket . " set-buffer " . target . " " . a:text)
+    if v:shell_error != 0
+        echom 'Aborting paste.'
+        return 1
+    end
+    call CallSystem(socket . " paste-buffer " . target)
+endfunction
+
 
 " Avoids pasting, and sharing the namespace.
 function! RunViaTmux(...)
