@@ -153,9 +153,9 @@ function! LastTmuxSocket()
                 \"grep 'tmp/tmux'",
                 \"tail -n 1",
                 \"rev ",
-                \"cut -d ' ' -f 2 ",
+                \"cut -d ' ' -f 1 ",
                 \"rev ",
-                \"cut -d '/' -f 4"]
+                \"cut -d '/' -f 5"]
     let tp = trim(system(join(cmd, " \| ")))
     if tp == ""
         throw "Could not find tmux socket. Presumably there is no running tmux server."
