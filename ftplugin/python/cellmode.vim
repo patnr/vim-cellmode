@@ -148,14 +148,14 @@ endfunction
 
 
 function! LastTmuxSocket()
-    " Find last (latest?) tmux socket
+    " Find last (latest?) tmux socket.
+    " Careful! this must work for both mac and linux versions!
     let cmd = ["lsof -U 2>/dev/null",
                 \"grep 'tmp/tmux'",
                 \"tail -n 1",
-                \"rev ",
-                \"cut -d ' ' -f 1 ",
-                \"rev ",
-                \"cut -d '/' -f 5"]
+                \"tr -s ' ' '\n'",
+                \"grep 'tmux-[0-9]*/tp'",
+                \"grep -o 'tp[0-9]'"]
     let tp = trim(system(join(cmd, " \| ")))
     if tp == ""
         throw "Could not find tmux socket. Presumably there is no running tmux server."
