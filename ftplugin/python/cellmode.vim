@@ -166,6 +166,7 @@ function! LastTmuxSocket()
     return tp
 endfunction
 
+command! -buffer -nargs=1 Tp let b:cellmode_tmux_sessionname="tp<args>"
 
 function! ParseTp()
     " Alias
