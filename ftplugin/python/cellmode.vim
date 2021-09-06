@@ -54,7 +54,10 @@ function! DefaultVars()
   endif
 
   " Special fallback for b:cellmode_tmux_sessionname,
-  " that get's re-run each time DefaultVars is run:
+  " that get's re-run each time DefaultVars is run,
+  " so as to always pick out the latest tmux server,
+  " IF it has the "(auto)" tag
+  " (i.e. setting the variable manually will fix it).
   let tp = GetVar('cellmode_tmux_sessionname', "")
   if tp == "" || tp =~ "(auto)"
       let tp = LastTmuxSocket()
