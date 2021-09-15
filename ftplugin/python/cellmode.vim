@@ -218,6 +218,27 @@ function! RunViaTmux(...)
 endfunction
 
 
+function! IpdbRunCallViaTmux(...)
+  call DefaultVars()
+
+  " Parse current line
+  let ln = getline(".")
+  " Remove up to "=" except if its inside parantheses
+  let ln = substitute(ln, "^[^\(]*= *", "", "")
+  " Replace first "(" by ", "
+  let ln = substitute(ln, "(", ", ", "")
+  " Escape some special chars
+  let ln = substitute(ln, '\(["()]\)', '\\\1', "g")
+  " Replace spaces
+  let ln = substitute(ln, ' ', ' Space ', "g")
+
+  let msg = 'import Space ipdb Space Enter'
+  let msg .= ' ipdb.runcall\(' . ln
+  call TmuxClearIPythonLine()
+  silent call TmuxSendKeys(msg)
+endfunction
+
+
 function! CopyToTmux(code)
   let l:lines = split(a:code, "\n")
 
