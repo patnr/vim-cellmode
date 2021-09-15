@@ -196,26 +196,24 @@ function! TmuxSendText(text)
     call CallSystem(socket . " paste-buffer " . target)
 endfunction
 
-
-" Avoids pasting, and sharing the namespace.
-function! RunViaTmux(...)
-  call DefaultVars()
-  execute ":w"
-
+function! TmuxClearIPythonLine()
   " Leave tmux copy mode (silence error that arises if not)
   silent call TmuxSendKeys("-X cancel ")
   " Enter ipython's readline-vim-insert-mode (or write i otherwise)
   call TmuxSendKeys("i")
   " Cancel whatever is currently written
   call TmuxSendKeys("C-c")
+endfunction
 
-  " Run as interactive?
-  let interactive = a:0 >= 1 ? a:1 : 0
-  let l:msg = '%run Space ' . (interactive ? "-i Space " : "")
 
+" Avoids pasting, and sharing the namespace.
+function! RunViaTmux(...)
+  call DefaultVars()
+  execute ":w"
+  let interact = a:0 >= 1 ? a:1 : 0
   let fname = fnamemodify(bufname("%"), b:cellmode_abs_path ? ":p" : ":p:~:.")
-  " Run
-  let l:msg = l:msg . '\"' . fname . '\" Enter'
+  let l:msg = '%run Space '.(interact ? "-i Space " : "").'\"'.fname.'\" Enter'
+  call TmuxClearIPythonLine()
   silent call TmuxSendKeys(l:msg)
 endfunction
 
@@ -281,11 +279,11 @@ function! CopyToTmux(code)
     call writefile(l:apdx, l:cellmode_fname, "a")
   end
 
+  call TmuxClearIPythonLine()
+
   " Send lines
   " ---------
   " Use `%run -i` rather `%load` (like the original implementation).
-  " Leave tmux copy mode (silence error that arises if not)
-  silent call TmuxSendKeys("-X cancel ")
   " Surround tmp path by quotation marks.
   let l:cellmode_fname = '\"' . l:cellmode_fname . '\"'
   " Use % in front of run to allow multiline (for comments).
