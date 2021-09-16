@@ -347,21 +347,11 @@ function! RunPythonReg()
 endfunction
 
 
-function! RunPythonCell(restore_cursor)
-  " This is to emulate MATLAB's cell mode. Cells are delimited by ##,
-  " but this can be configured through b:cellmode_cell_delimiter.
-  " For simplicity, we only refer to ## in our doc/comments.
+function! MoveCellWise(downwards)
+  " Mark cell delimiters, moving via search (for delimiters).
+  " If there are exceptions, move to TOP (0), or BOTTOM ($).
   call DefaultVars()
   let xx = b:cellmode_cell_delimiter
-
-  " Setup
-  if a:restore_cursor
-    let l:winview = winsaveview()
-  end
-  " Move one line down if we're currently on ##
-  if getline(".") =~ xx
-      execute "normal! j"
-  end
 
   " Old method: Search and create range with :?##?;/##/. Works like so:
   " - ?##? search backwards for ##
@@ -371,14 +361,59 @@ function! RunPythonCell(restore_cursor)
   " let l:pat = ':?' . xx . '?;/' . xx . '/y a'
   " silent exe l:pat
 
-  " Alternative solution: use marks, moving via search (for delimiters).
-  " If there are exceptions, move to TOP (0), or BOTTOM ($).
+  " Move one line if we're currently on ##
+  if getline(".") =~ xx
+      if a:downwards
+          normal j
+      else
+          normal k
+      endif
+      execute "normal! j"
+  end
+
+  " Turn on wrapscan
   let l:wpscn=&wrapscan | set nowrapscan
-  try | exec ':?'.xx | catch | silent 0 | endtry
+
+  " Find match above
+  try
+      exec ':?'.xx
+  catch
+      silent 0
+  endtry
   mark [
-  try | exec ':/'.xx | catch | silent $ | endtry
+
+  " Find match below
+  try
+      exec ':/'.xx
+  catch
+      silent $
+  endtry
   mark ]
+
+  " Go to start instead
+  if !a:downwards
+      execute "normal! '["
+  endif
+
+  " Restore setting
   if l:wpscn | set wrapscan | endif
+endfunction
+
+
+function! RunPythonCell(restore_cursor)
+  " This is to emulate MATLAB's cell mode. Cells are delimited by ##,
+  " but this can be configured through b:cellmode_cell_delimiter.
+  " For simplicity, we only refer to ## in our doc/comments.
+
+  " Setup
+  " call DefaultVars() " already in MoveCellWise
+  if a:restore_cursor
+    let l:winview = winsaveview()
+  end
+  let xx = b:cellmode_cell_delimiter
+
+  " Alternative solution
+  call MoveCellWise(1)
   silent normal '["ay']
 
   " Get header/footer lines, and check if they contain ##
