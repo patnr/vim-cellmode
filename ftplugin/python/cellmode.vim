@@ -24,10 +24,6 @@ function! DefaultVars()
   " - cellmode_tmux_windowname
   " - cellmode_tmux_panenumber
   "
-  " - cellmode_screen_sessionname
-  " - cellmode_screen_window
-  " - cellmode_use_tmux
-  "
   " - Only use abs path when file not under pwd. If 1: always use abs path.
   "   cellmode_abs_path
   "
@@ -42,10 +38,6 @@ function! DefaultVars()
   let b:cellmode_echo_assigments_too = GetVar('cellmode_echo_assigments_too', 0)
 
   let b:cellmode_n_files = GetVar('cellmode_n_files', 10)
-
-  if !exists("b:cellmode_use_tmux")
-    let b:cellmode_use_tmux = GetVar('cellmode_use_tmux', 1)
-  endif
 
   if !exists("b:cellmode_cell_delimiter")
     " By default, use ##, #%% or # %% (to be compatible with spyder)
@@ -71,12 +63,6 @@ function! DefaultVars()
     " Doesn't work since we started using separate tmux servers.
     let b:cellmode_tmux_windowname = GetVar('cellmode_tmux_windowname', '')
     let b:cellmode_tmux_panenumber = GetVar('cellmode_tmux_panenumber', '0')
-  endif
-
-  if !exists("g:cellmode_screen_sessionname") ||
-   \ !exists("b:cellmode_screen_window")
-    let b:cellmode_screen_sessionname = GetVar('cellmode_screen_sessionname', 'ipython')
-    let b:cellmode_screen_window = GetVar('cellmode_screen_window', '0')
   endif
 
 endfunction
@@ -354,37 +340,10 @@ function! CopyToTmux(code)
 endfunction
 
 
-
-function! CopyToScreen(code)
-  let l:lines = split(a:code, "\n")
-  " If the file is empty, it seems like tmux load-buffer keep the current
-  " buffer and this cause the last command to be repeated. We do not want that
-  " to happen, so add a dummy string
-  if len(l:lines) == 0
-    call add(l:lines, ' ')
-  end
-  let l:cellmode_fname = GetNextTempFile()
-  call writefile(l:lines, l:cellmode_fname)
-
-  if has('macunix')
-    call system("pbcopy < " . l:cellmode_fname)
-  else
-    call system("xclip -i -selection c " . l:cellmode_fname)
-  end
-  call system("screen -S " . b:cellmode_screen_sessionname .
-             \ " -p " . b:cellmode_screen_window
-              \ . " -X stuff '%paste\n'")
-endfunction
-
-
 function! RunTmuxPythonReg()
   " Paste into tmux the content of the register @a
   let l:code = PythonUnindent(@a)
-  if b:cellmode_use_tmux
-    call CopyToTmux(l:code)
-  else
-    call CopyToScreen(l:code)
-  end
+  call CopyToTmux(l:code)
 endfunction
 
 
