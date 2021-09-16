@@ -152,7 +152,6 @@ function! LastTmuxSocket()
     return tp
 endfunction
 
-command! -buffer -nargs=1 Tp let b:cellmode_sessionname="tp<args>"
 
 function! ParseTp()
     " Alias
@@ -164,6 +163,7 @@ function! ParseTp()
     let target = "-t " . tp . ':' . b:cellmode_windowname . '.' . b:cellmode_panenumber
     return [socket, target]
 endfunction
+command! -buffer -nargs=1 Tp let b:cellmode_sessionname="tp<args>"
 
 
 function! SendKeys(keys)
@@ -181,6 +181,7 @@ function! SendText(text)
     end
     call CallSystem(socket . " paste-buffer " . target)
 endfunction
+
 
 function! ClearIPythonLine()
   " Leave tmux copy mode (silence error that arises if not)
@@ -489,24 +490,20 @@ endfunction
 
 function! RunPythonChunk() range
   call DefaultVars()
-  " Yank current selection to register a
   silent normal gv"ay
   let s:cellmode_header = "[visual]"
-
   call RunPythonReg()
 endfunction
 
 
 function! RunPythonLine()
   call DefaultVars()
-  " Yank current selection to register a
   silent normal "ayy
   call RunPythonReg()
 endfunction
 
 
-" Returns:
-"   1 if the var is set, 0 otherwise
+" Returns 1 if the var is set, 0 otherwise
 function! InitVariable(var, value)
     if !exists(a:var)
         execute 'let ' . a:var . ' = ' . "'" . a:value . "'"
@@ -517,7 +514,6 @@ endfunction
 
 
 call InitVariable("g:cellmode_default_mappings", 1)
-
 if g:cellmode_default_mappings
     vmap <silent> <C-c> :call RunPythonChunk()<CR>
     noremap <silent> <C-b> :call RunPythonCell(0)<CR>
