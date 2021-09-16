@@ -19,10 +19,10 @@ endfunction
 function! DefaultVars()
   " Define global/buffer config variables. Each one must be prefixed by g: or b: .
   "
-  " Defines target tmux
-  " - cellmode_tmux_sessionname (also defines socket name)
-  " - cellmode_tmux_windowname
-  " - cellmode_tmux_panenumber
+  " Defines target
+  " - cellmode_sessionname (also defines socket name)
+  " - cellmode_windowname
+  " - cellmode_panenumber
   "
   " - Only use abs path when file not under pwd. If 1: always use abs path.
   "   cellmode_abs_path
@@ -45,24 +45,24 @@ function! DefaultVars()
                                          \ '\(##\|#%%\|#\s%%\)')
   endif
 
-  " Special fallback for b:cellmode_tmux_sessionname,
+  " Special fallback for b:cellmode_sessionname,
   " that get's re-run each time DefaultVars is run,
   " so as to always pick out the latest tmux server,
   " IF it has the "(auto)" tag
   " (i.e. setting the variable manually will fix it).
-  let tp = GetVar('cellmode_tmux_sessionname', "")
+  let tp = GetVar('cellmode_sessionname', "")
   if tp == "" || tp =~ "(auto)"
       let tp = LastTmuxSocket()
       let tp = tp . "(auto)" " tag
   endif
-  let b:cellmode_tmux_sessionname = tp
+  let b:cellmode_sessionname = tp
 
-  if !exists("b:cellmode_tmux_windowname") ||
-   \ !exists("b:cellmode_tmux_panenumber")
+  if !exists("b:cellmode_windowname") ||
+   \ !exists("b:cellmode_panenumber")
     " Empty target session and window by default => tmux tries to pick session
     " Doesn't work since we started using separate tmux servers.
-    let b:cellmode_tmux_windowname = GetVar('cellmode_tmux_windowname', '')
-    let b:cellmode_tmux_panenumber = GetVar('cellmode_tmux_panenumber', '0')
+    let b:cellmode_windowname = GetVar('cellmode_windowname', '')
+    let b:cellmode_panenumber = GetVar('cellmode_panenumber', '0')
   endif
 
 endfunction
@@ -152,27 +152,27 @@ function! LastTmuxSocket()
     return tp
 endfunction
 
-command! -buffer -nargs=1 Tp let b:cellmode_tmux_sessionname="tp<args>"
+command! -buffer -nargs=1 Tp let b:cellmode_sessionname="tp<args>"
 
 function! ParseTp()
     " Alias
-    let tp = b:cellmode_tmux_sessionname
+    let tp = b:cellmode_sessionname
     " Rm (auto) tag (if it's there)
     let tp = substitute(tp, "(auto)", "", "")
     " Compose
     let socket = "tmux -L " . tp
-    let target = "-t " . tp . ':' . b:cellmode_tmux_windowname . '.' . b:cellmode_tmux_panenumber
+    let target = "-t " . tp . ':' . b:cellmode_windowname . '.' . b:cellmode_panenumber
     return [socket, target]
 endfunction
 
 
-function! TmuxSendKeys(keys)
+function! SendKeys(keys)
     let [socket, target] = ParseTp()
     call CallSystem(socket . " send-keys " . target . " " . a:keys)
 endfunction
 
 
-function! TmuxSendText(text)
+function! SendText(text)
     let [socket, target] = ParseTp()
     call CallSystem(socket . " set-buffer " . target . " " . a:text)
     if v:shell_error != 0
@@ -182,13 +182,13 @@ function! TmuxSendText(text)
     call CallSystem(socket . " paste-buffer " . target)
 endfunction
 
-function! TmuxClearIPythonLine()
+function! ClearIPythonLine()
   " Leave tmux copy mode (silence error that arises if not)
-  silent call TmuxSendKeys("-X cancel ")
+  silent call SendKeys("-X cancel ")
   " Enter ipython's readline-vim-insert-mode (or write i otherwise)
-  call TmuxSendKeys("i")
+  call SendKeys("i")
   " Cancel whatever is currently written
-  call TmuxSendKeys("C-c")
+  call SendKeys("C-c")
 endfunction
 
 
@@ -199,12 +199,12 @@ function! RunViaTmux(...)
   let interact = a:0 >= 1 ? a:1 : 0
   let fname = fnamemodify(bufname("%"), b:cellmode_abs_path ? ":p" : ":p:~:.")
   let l:msg = '%run Space '.(interact ? "-i Space " : "").'\"'.fname.'\" Enter'
-  call TmuxClearIPythonLine()
-  silent call TmuxSendKeys(l:msg)
+  call ClearIPythonLine()
+  silent call SendKeys(l:msg)
 endfunction
 
 
-function! IpdbRunCallViaTmux(...)
+function! IpdbRunCall(...)
   call DefaultVars()
 
   " Parse current line
@@ -220,8 +220,8 @@ function! IpdbRunCallViaTmux(...)
 
   let msg = 'import Space ipdb Space Enter'
   let msg .= ' ipdb.runcall\(' . ln
-  call TmuxClearIPythonLine()
-  silent call TmuxSendKeys(msg)
+  call ClearIPythonLine()
+  silent call SendKeys(msg)
 endfunction
 
 
@@ -286,7 +286,7 @@ function! CopyToTmux(code)
     call writefile(l:apdx, l:cellmode_fname, "a")
   end
 
-  call TmuxClearIPythonLine()
+  call ClearIPythonLine()
 
   " Send lines
   " ---------
@@ -309,8 +309,8 @@ function! CopyToTmux(code)
   " ---------
   if b:cellmode_verbose
     " Start a new line
-    call TmuxSendText(l:cmd)
-    call TmuxSendKeys("C-v C-j")
+    call SendText(l:cmd)
+    call SendKeys("C-v C-j")
     " Insert actual file path and line numbers.
     let l:cmd = '"# "' . expand("%:p") . ":"
   else
@@ -322,8 +322,8 @@ function! CopyToTmux(code)
   " ---------
   if exists("s:cellmode_header")
     if b:cellmode_verbose
-      call TmuxSendText(l:cmd)
-      call TmuxSendKeys("C-v C-j")
+      call SendText(l:cmd)
+      call SendKeys("C-v C-j")
       let l:cmd = '"# "'
     else
       let l:cmd .= '" :: "'
@@ -334,20 +334,20 @@ function! CopyToTmux(code)
 
   " Execute
   " ---------
-  call TmuxSendText(l:cmd)
-  call TmuxSendKeys("Enter")
+  call SendText(l:cmd)
+  call SendKeys("Enter")
 
 endfunction
 
 
-function! RunTmuxPythonReg()
+function! RunPythonReg()
   " Paste into tmux the content of the register @a
   let l:code = PythonUnindent(@a)
   call CopyToTmux(l:code)
 endfunction
 
 
-function! RunTmuxPythonCell(restore_cursor)
+function! RunPythonCell(restore_cursor)
   " This is to emulate MATLAB's cell mode. Cells are delimited by ##,
   " but this can be configured through b:cellmode_cell_delimiter.
   " For simplicity, we only refer to ## in our doc/comments.
@@ -422,7 +422,7 @@ function! RunTmuxPythonCell(restore_cursor)
   let l:iEnd   = l:footer_exists ? -2 : -1
   let @a=join(split(@a, "\n")[l:iStart : l:iEnd], "\n")
 
-  call RunTmuxPythonReg()
+  call RunPythonReg()
 
   if a:restore_cursor
     call winrestview(l:winview)
@@ -430,7 +430,7 @@ function! RunTmuxPythonCell(restore_cursor)
 endfunction
 
 
-function! RunTmuxPythonAllCellsAbove()
+function! RunPythonAllCellsAbove()
   " Executes all the cells above the current line. That is, everything from
   " the beginning of the file to the closest ## above the current line
   call DefaultVars()
@@ -443,30 +443,30 @@ function! RunTmuxPythonAllCellsAbove()
   let l:cursor_pos = getpos(".")
 
   " Creates a range from the first line to the closest ## above.
-  " See RunTmuxPythonCell for explanations
+  " See RunPythonCell for explanations
   silent exe ':1,?' . b:cellmode_cell_delimiter . '?y a'
 
   let @a=join(split(@a, "\n")[:-2], "\n")
-  call RunTmuxPythonReg()
+  call RunPythonReg()
   call setpos(".", l:cursor_pos)
 endfunction
 
 
-function! RunTmuxPythonChunk() range
+function! RunPythonChunk() range
   call DefaultVars()
   " Yank current selection to register a
   silent normal gv"ay
   let s:cellmode_header = "[visual]"
 
-  call RunTmuxPythonReg()
+  call RunPythonReg()
 endfunction
 
 
-function! RunTmuxPythonLine()
+function! RunPythonLine()
   call DefaultVars()
   " Yank current selection to register a
   silent normal "ayy
-  call RunTmuxPythonReg()
+  call RunPythonReg()
 endfunction
 
 
@@ -484,7 +484,7 @@ endfunction
 call InitVariable("g:cellmode_default_mappings", 1)
 
 if g:cellmode_default_mappings
-    vmap <silent> <C-c> :call RunTmuxPythonChunk()<CR>
-    noremap <silent> <C-b> :call RunTmuxPythonCell(0)<CR>
-    noremap <silent> <C-g> :call RunTmuxPythonCell(1)<CR>
+    vmap <silent> <C-c> :call RunPythonChunk()<CR>
+    noremap <silent> <C-b> :call RunPythonCell(0)<CR>
+    noremap <silent> <C-g> :call RunPythonCell(1)<CR>
 endif
