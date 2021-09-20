@@ -395,6 +395,9 @@ function! MoveCellWise(downwards)
       execute "normal! '["
   endif
 
+  " Center scroll
+  normal zz
+
   " Restore setting
   if l:wpscn | set wrapscan | endif
 endfunction
