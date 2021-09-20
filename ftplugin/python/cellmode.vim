@@ -397,6 +397,8 @@ function! MoveCellWise(downwards)
 
   " Center scroll
   normal zz
+  " Scroll down 25 \%
+  exe "normal " . &lines/4. "\<C-e>"
 
   " Restore setting
   if l:wpscn | set wrapscan | endif
