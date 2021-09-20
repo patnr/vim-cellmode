@@ -409,15 +409,15 @@ function! RunPythonCell(restore_cursor)
   " For simplicity, we only refer to ## in our doc/comments.
 
   " Setup
-  " call DefaultVars() " already in MoveCellWise
   if a:restore_cursor
     let l:winview = winsaveview()
   end
-  let xx = b:cellmode_cell_delimiter
 
-  " Alternative solution
   call MoveCellWise(1)
   silent normal '["ay']
+
+  " call DefaultVars() " already in MoveCellWise
+  let xx = b:cellmode_cell_delimiter
 
   " Get header/footer lines, and check if they contain ##
   " (might not be the case at TOP/BOTTOM)
