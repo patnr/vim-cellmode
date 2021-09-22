@@ -9,7 +9,7 @@ if exists("b:cellmode_syntax")
 endif
 
 " Highlight cell delimiters
-syntax match cellDelim '^\s*#\s*\(##\|%%\).*'
+syntax match cellDelim '\v^\s*#(#+|\s+(##+|\%\%+)).*'
 highlight default link cellDelim TabLine
 
 let b:cellmode_syntax = "done"

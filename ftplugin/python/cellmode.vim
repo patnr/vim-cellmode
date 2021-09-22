@@ -41,7 +41,8 @@ function! DefaultVars()
 
   if !exists("b:cellmode_cell_delimiter")
     " By default, use ##, #%% or # %% (to be compatible with spyder)
-    let b:cellmode_cell_delimiter = GetVar('cellmode_cell_delimiter', '^\s*#\s*\(##\|%%\)')
+    let b:cellmode_cell_delimiter = GetVar('cellmode_cell_delimiter',
+                \ '\v^\s*#(#+|\s+(##+|\%\%+)).*')
   endif
 
   " Special fallback for b:cellmode_sessionname,
