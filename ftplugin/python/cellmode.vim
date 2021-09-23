@@ -227,6 +227,14 @@ function! IpdbRunCall(...)
 endfunction
 
 
+function! SetBreakPoint(...)
+  call DefaultVars()
+  let msg = 'b Space ' . line(".")
+  call ClearIPythonLine()
+  silent call SendKeys(msg)
+endfunction
+
+
 function! CopyToTmux(code)
   let l:lines = split(a:code, "\n")
 
