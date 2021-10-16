@@ -199,9 +199,22 @@ function! RunViaTmux(...)
   execute ":w"
   let interact = a:0 >= 1 ? a:1 : 0
   let fname = fnamemodify(bufname("%"), b:cellmode_abs_path ? ":p" : ":p:~:.")
+  let fname = EscapeForTmuxKeys(fname)
   let l:msg = '%run Space '.(interact ? "-i Space " : "").'\"'.fname.'\" Enter'
   call ClearIPythonLine()
   silent call SendKeys(l:msg)
+endfunction
+
+
+" Escape special characters for use with SendKeys
+function EscapeForTmuxKeys(str)
+    let ln = a:str
+    " Escape some special chars
+    let ln = substitute(ln, '\(["()]\)', '\\\1', "g")
+    let ln = substitute(ln, "'", "\\\\'", "g")
+    " Replace spaces
+    let ln = substitute(ln, ' ', ' Space ', "g")
+    return ln
 endfunction
 
 
@@ -214,12 +227,8 @@ function! IpdbRunCall(...)
   let ln = substitute(ln, "^[^\(]*= *", "", "")
   " Replace first "(" by ", "
   let ln = substitute(ln, "(", ", ", "")
-  " Escape some special chars
-  let ln = substitute(ln, '\(["()]\)', '\\\1', "g")
-  let ln = substitute(ln, "'", "\\\\'", "g")
-  " Replace spaces
-  let ln = substitute(ln, ' ', ' Space ', "g")
 
+  let ln = EscapeForTmuxKeys(ln)
   let msg = 'import Space ipdb Space Enter'
   let msg .= ' ipdb.runcall\(' . ln
   call ClearIPythonLine()
