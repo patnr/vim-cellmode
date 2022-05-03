@@ -369,8 +369,10 @@ endfunction
 function! MoveCellWise(downwards)
   " Mark cell delimiters, moving via search (for delimiters).
   " If there are exceptions, move to TOP (0), or BOTTOM ($).
+
   call DefaultVars()
   let xx = b:cellmode_cell_delimiter
+  " let so=&scrolloff | set so=10
 
   " Old method: Search and create range with :?##?;/##/. Works like so:
   " - ?##? search backwards for ##
@@ -414,13 +416,20 @@ function! MoveCellWise(downwards)
       execute "normal! '["
   endif
 
-  " Center scroll
-  normal zz
-  " Scroll down 25 \%
-  exe "normal " . &lines/4. "\<C-e>"
+  " Manual scrolloff
+  mark a
+  normal 10j
+  normal 'a
+  normal 10k
+  normal 'a
+
+  " Always scroll: center, then down 25%
+  " normal zz
+  " exe "normal " . &lines/4. "\<C-e>"
 
   " Restore setting
   if l:wpscn | set wrapscan | endif
+  " let &so=so
 endfunction
 
 
