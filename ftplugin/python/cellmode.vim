@@ -16,7 +16,7 @@ function! GetVar(name, default)
 endfunction
 
 
-function! DefaultVars()
+function! DefaultVars(get_tmux=1)
   " Define global/buffer config variables. Each one must be prefixed by g: or b: .
   "
   " Defines target
@@ -45,24 +45,26 @@ function! DefaultVars()
                 \ '\v^\s*#(#+|\s+(##+|\%\%+)).*')
   endif
 
-  " Special fallback for b:cellmode_sessionname,
-  " that get's re-run each time DefaultVars is run,
-  " so as to always pick out the latest tmux server,
-  " IF it has the "(auto)" tag
-  " (i.e. setting the variable manually will fix it).
-  let tp = GetVar('cellmode_sessionname', "")
-  if tp == "" || tp =~ "(auto)"
-      let tp = LastTmuxSocket()
-      let tp = tp . "(auto)" " tag
-  endif
-  let b:cellmode_sessionname = tp
+  if a:get_tmux
+      " Special fallback for b:cellmode_sessionname,
+      " that get's re-run each time DefaultVars is run,
+      " so as to always pick out the latest tmux server,
+      " IF it has the "(auto)" tag
+      " (i.e. setting the variable manually will fix it).
+      let tp = GetVar('cellmode_sessionname', "")
+      if tp == "" || tp =~ "(auto)"
+          let tp = LastTmuxSocket()
+          let tp = tp . "(auto)" " tag
+      endif
+      let b:cellmode_sessionname = tp
 
-  if !exists("b:cellmode_windowname") ||
-   \ !exists("b:cellmode_panenumber")
-    " Empty target session and window by default => tmux tries to pick session
-    " Doesn't work since we started using separate tmux servers.
-    let b:cellmode_windowname = GetVar('cellmode_windowname', '')
-    let b:cellmode_panenumber = GetVar('cellmode_panenumber', '0')
+      if !exists("b:cellmode_windowname") ||
+       \ !exists("b:cellmode_panenumber")
+        " Empty target session and window by default => tmux tries to pick session
+        " Doesn't work since we started using separate tmux servers.
+        let b:cellmode_windowname = GetVar('cellmode_windowname', '')
+        let b:cellmode_panenumber = GetVar('cellmode_panenumber', '0')
+      endif
   endif
 
 endfunction
@@ -370,7 +372,7 @@ function! MoveCellWise(downwards)
   " Mark cell delimiters, moving via search (for delimiters).
   " If there are exceptions, move to TOP (0), or BOTTOM ($).
 
-  call DefaultVars()
+  call DefaultVars(0)
   let xx = b:cellmode_cell_delimiter
   " let so=&scrolloff | set so=10
 
@@ -446,7 +448,7 @@ function! RunPythonCell(restore_cursor)
   call MoveCellWise(1)
   silent normal '["ay']
 
-  " call DefaultVars() " already in MoveCellWise
+  call DefaultVars()
   let xx = b:cellmode_cell_delimiter
 
   " Get header/footer lines, and check if they contain ##
