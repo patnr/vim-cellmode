@@ -188,6 +188,8 @@ endfunction
 function! ClearIPythonLine()
   " Leave tmux copy mode (silence error that arises if not)
   silent call SendKeys("-X cancel ")
+  " Quit pager in case we're in ipython's help
+  call SendKeys("q")
   " Enter ipython's readline-vim-insert-mode (or write i otherwise)
   call SendKeys("i")
   " Cancel whatever is currently written
