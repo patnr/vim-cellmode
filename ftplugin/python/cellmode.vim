@@ -251,6 +251,9 @@ endfunction
 function! CopyToTmux(code)
   let l:lines = split(a:code, "\n")
 
+  " Strip >>>
+  let l:lines = map(l:lines, 'substitute(v:val, "^ *>>> *", "", "")')
+
   " Tmp Filename
   " ---------
   if b:cellmode_verbose
