@@ -325,9 +325,6 @@ function! CopyToTmux(code)
   " Get line numbers
   " ---------
   let l:winview = winsaveview()
-  " Find starting, ending, lineno
-  execute "normal! '[" | let l:line1 = line(".")
-  execute "normal! ']" | let l:line2 = line(".")
   " Load saved cursor position
   call winrestview(l:winview)
 
@@ -342,7 +339,7 @@ function! CopyToTmux(code)
   else
     let l:cmd .= '" # "'
   end
-  let l:cmd .= l:line1.'":"'.l:line2
+  let l:cmd .= g:line1.'":"'.g:line2
 
   " Append headers
   " ---------
@@ -373,8 +370,8 @@ function! RunPythonReg()
 endfunction
 
 
-function! MoveCellWise(downwards)
-  " Mark cell delimiters, moving via search (for delimiters).
+function! MoveCellWise(downwards, was_visual)
+  " Find cell delimiters, moving via search (for delimiters).
   " If there are exceptions, move to TOP (0), or BOTTOM ($).
 
   call DefaultVars(0)
@@ -408,7 +405,7 @@ function! MoveCellWise(downwards)
   catch
       silent 0
   endtry
-  mark [
+  let g:line1=line('.')
 
   " Find match below
   try
@@ -416,11 +413,18 @@ function! MoveCellWise(downwards)
   catch
       silent $
   endtry
-  mark ]
+  let g:line2=line('.')
 
-  " Go to start instead
-  if !a:downwards
-      execute "normal! '["
+  " Re-select visual
+  if a:was_visual
+      normal gv
+  endif
+
+  " Goto match
+  if a:downwards
+      call setpos('.', [0, g:line2, 0, 0])
+  else
+      call setpos('.', [0, g:line1, 0, 0])
   endif
 
   " Manual scrolloff
@@ -450,19 +454,17 @@ function! RunPythonCell(restore_cursor)
     let l:winview = winsaveview()
   end
 
-  call MoveCellWise(1)
-  silent normal '["ay']
+  call MoveCellWise(1, 0)
+  silent execute ":" . g:line1 . "," . g:line2 . "yank a"
 
   call DefaultVars()
   let xx = b:cellmode_cell_delimiter
 
   " Get header/footer lines, and check if they contain ##
   " (might not be the case at TOP/BOTTOM)
-  execute "normal! '["
-  let l:header = getline(".")
+  let l:header = getline(g:line1)
   let l:header_exists = -1<match(l:header, "^\\s*".xx)
-  execute "normal! ']"
-  let l:footer = getline(".")
+  let l:footer = getline(g:line2)
   let l:footer_exists = -1<match(l:footer, "^\\s*".xx)
 
   " Format header
@@ -480,13 +482,11 @@ function! RunPythonCell(restore_cursor)
   endif
 
   " Position cursor in next block for chaining execution
-  execute "normal! ']"
+  call setpos('.', [0, g:line2, 0, 0])
 
   if l:footer_exists
-    " Set mark 1 line up (for printing the linenumber, later)
-    normal k
-    mark ]
-    normal j
+    " Decrement line2 by 1 (for printing the linenumber, later)
+    let g:line2 -= 1
   endif
 
   " The above will have the leading and trailing ## in the register,
