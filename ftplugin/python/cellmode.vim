@@ -585,8 +585,8 @@ endfunction
 
 function! RunPythonChunk() range
   call DefaultVars()
-  let g:line1=line("'[")
-  let g:line2=line("']")
+  let g:line1=line("'<")
+  let g:line2=line("'>")
   call YankA(g:line1, g:line2)
   " silent normal gv"ay
   let s:cellmode_header = "[visual]"
