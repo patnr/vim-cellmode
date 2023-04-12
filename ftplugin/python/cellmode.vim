@@ -529,7 +529,10 @@ endfunction
 
 function! RunPythonChunk() range
   call DefaultVars()
-  silent normal gv"ay
+  let g:line1=line("'[")
+  let g:line2=line("']")
+  silent execute ":" . g:line1 . "," . g:line2 . "yank a"
+  " silent normal gv"ay
   let s:cellmode_header = "[visual]"
   call RunPythonReg()
 endfunction
