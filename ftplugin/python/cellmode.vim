@@ -440,6 +440,15 @@ function! MoveCellWise(downwards, was_visual)
   " let &so=so
 endfunction
 
+" Yank into register a
+" Work around the fact that ranges does not work well with folds
+function! YankA(from, to)
+    let l:save_foldenable = &l:foldenable
+    setlocal nofoldenable
+    silent execute ":" . a:from . "," . a:to . "yank a"
+    let &l:foldenable = l:save_foldenable
+endfunction
+
 
 function! RunPythonCell(restore_cursor)
   " This is to emulate MATLAB's cell mode. Cells are delimited by ##,
@@ -452,7 +461,8 @@ function! RunPythonCell(restore_cursor)
   end
 
   call MoveCellWise(1, 0)
-  silent execute ":" . g:line1 . "," . g:line2 . "yank a"
+
+  call YankA(g:line1, g:line2)
 
   call DefaultVars()
   let xx = b:cellmode_cell_delimiter
@@ -577,7 +587,7 @@ function! RunPythonChunk() range
   call DefaultVars()
   let g:line1=line("'[")
   let g:line2=line("']")
-  silent execute ":" . g:line1 . "," . g:line2 . "yank a"
+  call YankA(g:line1, g:line2)
   " silent normal gv"ay
   let s:cellmode_header = "[visual]"
   call RunPythonReg()
