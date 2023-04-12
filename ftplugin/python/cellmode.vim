@@ -124,7 +124,6 @@ function! GetNextTempFile()
     let b:cellmode_fnames_index += 1
   endif
 
-  "echo 'cellmode_fname : ' . l:cellmode_fname
   return l:cellmode_fname
 endfunction
 
@@ -386,18 +385,16 @@ function! MoveCellWise(downwards, was_visual)
   " let l:pat = ':?' . xx . '?;/' . xx . '/y a'
   " silent exe l:pat
 
-  " Move one line if we're currently on ##
-  if getline(".") =~ xx
-      if a:downwards
-          normal j
-      else
-          normal k
-      endif
-      execute "normal! j"
-  end
-
-  " Turn on wrapscan
+  " Turn off wrapscan
   let l:wpscn=&wrapscan | set nowrapscan
+
+  " Move INTO cell if currently on delim
+  if getline(".") =~ xx && a:downwards
+      " NB: we must move entire folds (whence gj, gk) because if we're inside a fold
+      "     then vim search won't find the above delimiter.
+      "     Of course, this still does not work when we're on the very last fold.
+      normal gj
+  end
 
   " Find match above
   try
