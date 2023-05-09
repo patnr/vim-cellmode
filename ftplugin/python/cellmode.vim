@@ -69,9 +69,12 @@ function! RunViaTmux(...)
   call DefaultVars()
   execute ":w"
   let interact = a:0 >= 1 ? a:1 : 0
+  let interact = interact ? "-i".space : ""
+  let space = ' Space '
   let fname = fnamemodify(bufname("%"), b:cellmode_abs_path ? ":p" : ":p:~:.")
-  let fname = EscapeForTmuxKeys(fname)
-  let l:msg = '%run Space '.(interact ? "-i Space " : "").'\"'.fname.'\" Enter'
+  let fname = '\"'.EscapeForTmuxKeys(fname).'\"'
+  let rargs = space . join(b:cellmode_run_args, space)
+  let l:msg = '%run'.space.interact.fname.rargs.' Enter'
   call ClearIPythonLine()
   silent call SendKeys(l:msg)
 endfunction
