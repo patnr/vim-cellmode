@@ -24,6 +24,7 @@ function! DefaultVars()
     let b:cellmode_echo_assigments_too = GetVar('cellmode_echo_assigments_too', 0)
 
     let b:cellmode_run_args = GetVar('cellmode_run_args', [])
+    let b:cellmode_bufname = GetVar('cellmode_bufname', "")
 
     " Num. of temp files to rotate between
     let b:cellmode_n_files = GetVar('cellmode_n_files', 10)

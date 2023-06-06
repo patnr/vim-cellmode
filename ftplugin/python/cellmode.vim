@@ -71,7 +71,8 @@ function! RunViaTmux(...)
   let space = ' Space '
   let interact = a:0 >= 1 ? a:1 : 0
   let interact = interact ? "-i".space : ""
-  let fname = fnamemodify(bufname("%"), b:cellmode_abs_path ? ":p" : ":p:~:.")
+  let fname = empty(b:cellmode_bufname) ? bufname("%") : b:cellmode_bufname
+  let fname = fnamemodify(fname, b:cellmode_abs_path ? ":p" : ":p:~:.")
   let fname = '\"'.EscapeForTmuxKeys(fname).'\"'
   let rargs = space . join(b:cellmode_run_args, space)
   let l:msg = '%run'.space.interact.fname.rargs.' Enter'
