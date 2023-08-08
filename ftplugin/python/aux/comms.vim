@@ -202,7 +202,7 @@ endfunction
 function! EscapeForTmuxKeys(str)
     let ln = a:str
     " Escape some special chars
-    let ln = substitute(ln, '\(["()]\)', '\\\1', "g")
+    let ln = substitute(ln, '\(["()&]\)', '\\\1', "g")
     let ln = substitute(ln, "'", "\\\\'", "g")
     " Replace spaces
     let ln = substitute(ln, ' ', ' Space ', "g")
